@@ -7,28 +7,28 @@ A polished one-command installer for the core developer environment and AI CLI t
 macOS, Linux, and WSL:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/your-repo/bootstrap/main/install.sh | bash -s -- --yes
+curl -fsSL https://raw.githubusercontent.com/lmmagbuhos/1-click-install/main/install.sh | bash -s -- --yes
 ```
 
 macOS, Linux, and WSL preview:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/your-repo/bootstrap/main/install.sh | bash -s -- --dry-run
+curl -fsSL https://raw.githubusercontent.com/lmmagbuhos/1-click-install/main/install.sh | bash -s -- --dry-run
 ```
 
 Windows PowerShell:
 
 ```powershell
-iwr -useb https://raw.githubusercontent.com/your-repo/bootstrap/main/install.ps1 | iex
+iwr -useb https://raw.githubusercontent.com/lmmagbuhos/1-click-install/main/install.ps1 | iex
 ```
 
 Windows PowerShell with WSL handoff:
 
 ```powershell
-$script = iwr -useb https://raw.githubusercontent.com/your-repo/bootstrap/main/install.ps1; & ([scriptblock]::Create($script)) -Target WSL
+$script = iwr -useb https://raw.githubusercontent.com/lmmagbuhos/1-click-install/main/install.ps1; & ([scriptblock]::Create($script)) -Target WSL
 ```
 
-Replace `your-repo/bootstrap` with the final GitHub repository path before publishing.
+Source repository: https://github.com/lmmagbuhos/1-click-install
 
 ## What It Installs
 
