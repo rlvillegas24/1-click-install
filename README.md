@@ -7,13 +7,13 @@ A polished one-command installer for the core developer environment and AI CLI t
 macOS, Linux, and WSL:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/your-repo/bootstrap/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/your-repo/bootstrap/main/install.sh | bash -s -- --yes
 ```
 
-macOS, Linux, and WSL non-interactive:
+macOS, Linux, and WSL preview:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/your-repo/bootstrap/main/install.sh | bash -s -- --yes
+curl -fsSL https://raw.githubusercontent.com/your-repo/bootstrap/main/install.sh | bash -s -- --dry-run
 ```
 
 Windows PowerShell:
@@ -25,7 +25,7 @@ iwr -useb https://raw.githubusercontent.com/your-repo/bootstrap/main/install.ps1
 Windows PowerShell with WSL handoff:
 
 ```powershell
-$script = iwr -useb https://raw.githubusercontent.com/your-repo/bootstrap/main/install.ps1; & ([scriptblock]::Create($script)) -Mode WSL
+$script = iwr -useb https://raw.githubusercontent.com/your-repo/bootstrap/main/install.ps1; & ([scriptblock]::Create($script)) -Target WSL
 ```
 
 Replace `your-repo/bootstrap` with the final GitHub repository path before publishing.
@@ -43,6 +43,7 @@ AI CLI tools:
 - Claude Code from `@anthropic-ai/claude-code`
 - cc-mirror from `cc-mirror`
 - Minimax from `mmx-cli`
+- OpenAI Codex from `@openai/codex`
 - Gemini CLI from `@google/gemini-cli`
 
 ## Supported Platforms
@@ -62,6 +63,12 @@ Bash:
 ./install.sh --dry-run
 ./install.sh --yes
 ./install.sh --no-color
+./install.sh --mode quick
+./install.sh --mode custom
+./install.sh --mode mirror
+./install.sh --only git,python,node,claude,codex
+./install.sh --skip gemini,minimax
+./install.sh --mirror claude,minimax,codex
 ```
 
 PowerShell:
@@ -71,7 +78,13 @@ PowerShell:
 .\install.ps1 -DryRun
 .\install.ps1 -Yes
 .\install.ps1 -NoColor
-.\install.ps1 -Mode WSL
+.\install.ps1 -Mode Quick
+.\install.ps1 -Mode Custom
+.\install.ps1 -Mode Mirror
+.\install.ps1 -Target WSL
+.\install.ps1 -Only git,python,node,claude,codex
+.\install.ps1 -Skip gemini,minimax
+.\install.ps1 -Mirror claude,minimax,kimi
 ```
 
 ## Behavior
@@ -80,13 +93,33 @@ The installer is idempotent. Existing tools are skipped when detected. Missing t
 
 Default mode is interactive. Use `--yes` or `-Yes` when running in automation or from a non-interactive shell.
 
+Install modes:
+
+- `quick`: installs the recommended default set.
+- `custom`: lets the user choose Git, Python, Node, Claude, cc-mirror, Minimax, Codex, and Gemini separately.
+- `mirror`: sets up Node/npm, cc-mirror, and cc-mirror variants where supported.
+
+Git, Python, and Node are separate selectable tools. Python includes pip, and Node includes npm.
+
+By default, the installer selects `codex`, `gemini`, `cc-mirror`, and the `minimax` cc-mirror variant. Direct `claude` and `mmx` installs are available in Custom mode or through `--only` / `-Only`, but they are not selected by default.
+
+VS Code and Windows Terminal are Windows-only options in the PowerShell Custom selector; they are not selected by default and are not part of the Linux/macOS installer.
+
+The Windows installer supports these cc-mirror variants:
+
+- `mclaude` using provider `mirror`
+- `minimax` using provider `minimax`
+- `kimi` using provider `kimi`
+
+Codex is direct-only on Windows. It is installed from `@openai/codex` and is not configured through cc-mirror.
+
 AI CLI package names are centralized near the top of each script. If a public package changes, update the relevant entry without touching the platform detection logic.
 
 ## Troubleshooting
 
 ### macOS Homebrew
 
-The macOS installer uses Homebrew. If Homebrew is missing, the installer asks before installing it.
+The macOS installer uses Homebrew. If Homebrew is missing, the one-line `--yes` command installs Homebrew noninteractively, refreshes the current session with `brew shellenv`, then installs the selected tools with `brew`.
 
 ### Linux permissions
 
@@ -115,7 +148,7 @@ wsl --install
 Then rerun the installer with:
 
 ```powershell
-.\install.ps1 -Mode WSL
+.\install.ps1 -Target WSL
 ```
 
 ### PATH
@@ -135,5 +168,6 @@ npm --version
 claude --version
 cc-mirror --help
 mmx --version
+codex --version
 gemini --version
 ```

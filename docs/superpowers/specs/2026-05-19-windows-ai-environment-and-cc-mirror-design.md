@@ -26,13 +26,15 @@ cc-mirror should be presented as a Claude Code variant manager, not as a replace
 
 Supported variants:
 
-- `mclaude`: `npx cc-mirror quick --provider mirror --name mclaude`
-- `minimax`: `npx cc-mirror quick --provider minimax --name minimax`
-- `kimi`: `npx cc-mirror quick --provider kimi --name kimi`
+- `mclaude`: `npx cc-mirror quick --provider mirror --name mclaude --no-tweak`
+- `minimax`: `npx cc-mirror quick --provider minimax --name minimax --no-tweak`
+- `kimi`: `npx cc-mirror quick --provider kimi --name kimi --no-tweak`
 
 Codex is direct-only. It must be removed from cc-mirror routing state, mirror menus, mirror install commands, mirror verification, and environment output.
 
 Selecting any cc-mirror variant should automatically select Node.js/npm and cc-mirror because both are required to create the variant.
+
+Default Windows selections should keep VS Code, Windows Terminal, direct Claude Code, and direct Minimax off. The default cc-mirror variant selection should include only `minimax`; `mclaude` and `kimi` remain available through the Custom TUI or `-Mirror`.
 
 ## TUI Behavior
 
