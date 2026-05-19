@@ -23,9 +23,21 @@ Supported flags:
 - `--yes` / `-y`: skip confirmations for automation
 - `--dry-run`: show the planned actions without installing
 - `--no-color`: disable ANSI color output
+- `--mode quick|custom|mirror`: choose the installer flow
+- `--only`: install only a comma-separated tool list
+- `--skip`: remove a comma-separated tool list from the plan
+- `--mirror`: request cc-mirror setup for supported AI tools
 - `--help`: print usage
 
 The output should gracefully fall back to plain text when color is disabled, unsupported, or the script is running in a non-interactive environment.
+
+Installer modes:
+
+- Quick mode installs the recommended default set.
+- Custom mode lets the user select Git, Python, Node, Claude, cc-mirror, Minimax, Codex, and Gemini separately.
+- Mirror mode sets up Node/npm, cc-mirror, and cc-mirror variants where supported.
+
+Git, Python, and Node are selectable independently. Python includes pip, and Node includes npm. Claude, Minimax, and Codex expose a mirror-source choice. cc-mirror currently supports Claude mirror variants and a Minimax provider variant; Codex via cc-mirror is reported as unsupported and falls back to the normal Codex installer when selected.
 
 ## Architecture
 
@@ -97,6 +109,7 @@ AI CLI tools:
 - Claude Code
 - cc-mirror
 - Minimax
+- OpenAI Codex
 - Gemini CLI
 
 AI CLI install commands will be centralized in small helper functions or a simple tool table in each script. This keeps public package names and verification commands easy to adjust without changing platform detection and rendering logic.

@@ -982,3 +982,15 @@ Expected: commit succeeds if this directory has been initialized as a git reposi
 - Spec coverage: the plan covers `install.sh`, `install.ps1`, README documentation, idempotent install behavior, interactive CLI output, flags, PATH handling, and verification.
 - Unfinished-marker scan: the only intentionally unresolved string is `your-repo/bootstrap`, which must remain configurable until the publishing repository is known.
 - Scope check: the feature is small enough for one implementation plan because the deliverables are two scripts and one README.
+
+## Revision: Selectable Modes and cc-mirror Source Choice
+
+The implemented installer now includes a selectable install plan:
+
+- Quick, custom, and mirror modes.
+- Separate selectable Git, Python/pip, and Node/npm tools.
+- Claude, Minimax, OpenAI Codex, Gemini CLI, and cc-mirror AI options.
+- `--only`, `--skip`, and `--mirror` automation flags in Bash.
+- `-Only`, `-Skip`, and `-Mirror` automation parameters in PowerShell.
+- PowerShell uses `-Mode Quick|Custom|Mirror` for install mode and `-Target Native|WSL` for Windows target.
+- `tests/test_install_sh.sh` verifies Bash mode selection, skip behavior, and cc-mirror routing in dry-run mode.
