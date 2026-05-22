@@ -2,6 +2,27 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+INSTALL_PS1="$ROOT_DIR/install.ps1"
+
+ps1_content="$(tr -d '\r' < "$INSTALL_PS1")"
+
+if [[ "$ps1_content" != *'Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force'* ]]; then
+  printf 'Expected install.ps1 to configure RemoteSigned execution policy\n' >&2
+  exit 1
+fi
+
+if [[ "$ps1_content" != *'npm config get prefix'* || "$ps1_content" != *'SetEnvironmentVariable("Path", $userPath, "User")'* ]]; then
+  printf 'Expected install.ps1 to persist npm global prefix in user PATH for cc-mirror commands\n' >&2
+  exit 1
+fi
+
+policy_line="$(printf '%s\n' "$ps1_content" | grep -n 'Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force' | head -n1 | cut -d: -f1)"
+entry_line="$(printf '%s\n' "$ps1_content" | grep -n '^# ENTRYPOINT' | head -n1 | cut -d: -f1)"
+
+if [[ -z "$policy_line" || -z "$entry_line" || "$policy_line" -ge "$entry_line" ]]; then
+  printf 'Expected RemoteSigned policy setup to be defined before install.ps1 entrypoint\n' >&2
+  exit 1
+fi
 
 PS_BIN="${PS_BIN:-}"
 if [[ -z "$PS_BIN" ]]; then

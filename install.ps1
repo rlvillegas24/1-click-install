@@ -131,6 +131,80 @@ function Write-Fatal([string]$msg) { colR  "  [X] $msg"; exit 1 }
 function Write-Info([string]$msg)  { colC  "  [i] $msg" }
 function Write-Step([string]$msg)  { colW  "  ... $msg" }
 
+function script:PathContains {
+    param([string[]]$paths, [string]$entry)
+    $needle = $entry.Trim()
+    if ([string]::IsNullOrWhiteSpace($needle)) { return $false }
+    $needle = $needle.TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar).ToLowerInvariant()
+    foreach ($p in $paths) {
+        if ([string]::IsNullOrWhiteSpace($p)) { continue }
+        if (($p.Trim().TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar).ToLowerInvariant()) -eq $needle) {
+            return $true
+        }
+    }
+    return $false
+}
+
+function script:Add-PathEntry {
+    param([string]$entry)
+    $entry = $entry.Trim()
+    if ([string]::IsNullOrWhiteSpace($entry)) { return }
+    $entry = [Environment]::ExpandEnvironmentVariables($entry).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+
+    $machinePath  = [Environment]::GetEnvironmentVariable("Path", "Machine")
+    $machineEntries = @()
+    if (-not [string]::IsNullOrWhiteSpace($machinePath)) {
+        $machineEntries = $machinePath -split ';'
+    }
+
+    $userPath    = [Environment]::GetEnvironmentVariable("Path", "User")
+    $userEntries = @()
+    if (-not [string]::IsNullOrWhiteSpace($userPath)) {
+        $userEntries = $userPath -split ';'
+    }
+    $combinedEntries = @($machineEntries + $userEntries)
+
+    if (-not (PathContains $combinedEntries $entry)) {
+        if ([string]::IsNullOrWhiteSpace($userPath)) {
+            $userPath = $entry
+        } else {
+            $userPath = "$userPath;$entry"
+        }
+        [Environment]::SetEnvironmentVariable("Path", $userPath, "User")
+        Write-OK "Added `"$entry`" to user PATH"
+    }
+    $env:Path = if ([string]::IsNullOrWhiteSpace($machinePath)) { $userPath } else { "$machinePath;$userPath" }
+}
+
+function script:Ensure-NpmGlobalPath {
+    if (-not (Test-Cmd "npm")) { return }
+
+    $npmPrefix = ""
+    try {
+        $npmPrefix = (npm config get prefix 2>$null | Out-String).Trim()
+    } catch {
+        return
+    }
+
+    if ([string]::IsNullOrWhiteSpace($npmPrefix)) { return }
+
+    Add-PathEntry $npmPrefix
+}
+
+function script:Ensure-ExecutionPolicy {
+    if ($DryRun) {
+        Write-Info "Dry-run: would run Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force"
+        return
+    }
+
+    try {
+        Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force -ErrorAction Stop
+        Write-OK "PowerShell execution policy set to RemoteSigned for CurrentUser"
+    } catch {
+        Write-Warn "Could not set PowerShell execution policy to RemoteSigned: $_"
+    }
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # BOX DRAWING
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1111,6 +1185,7 @@ function Install-AiTools {
         Install-NpmPkg $t.Name $t.Binary $t.NpmPkg $t.Verify
     }
 
+    Ensure-NpmGlobalPath
     Update-SessionPath
 
     if (Any-MirrorVariantSelected) {
@@ -1502,6 +1577,7 @@ function Configure-Selection {
 # ─────────────────────────────────────────────────────────────────────────────
 if ($Help) { Show-Usage; exit 0 }
 
+Ensure-ExecutionPolicy
 Configure-Selection
 Show-Banner
 Show-InfoBar

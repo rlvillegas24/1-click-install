@@ -21,8 +21,8 @@ SEL_NODE=1
 SEL_CLAUDE=0
 SEL_CC_MIRROR=1
 SEL_MINIMAX=0
-SEL_CODEX=1
-SEL_GEMINI=1
+SEL_CODEX=0
+SEL_GEMINI=0
 MIRROR_CLAUDE=0
 MIRROR_MINIMAX=1
 MIRROR_CODEX=0
@@ -179,15 +179,15 @@ apply_mirror_list() {
 configure_selection() {
   case "$MODE" in
     quick)
-      SEL_GIT=1; SEL_PYTHON=1; SEL_NODE=1; SEL_CLAUDE=0; SEL_CC_MIRROR=1; SEL_MINIMAX=0; SEL_CODEX=1; SEL_GEMINI=1
+      SEL_GIT=1; SEL_PYTHON=1; SEL_NODE=1; SEL_CLAUDE=0; SEL_CC_MIRROR=1; SEL_MINIMAX=0; SEL_CODEX=0; SEL_GEMINI=0
       MIRROR_CLAUDE=0; MIRROR_MINIMAX=1; MIRROR_CODEX=0; MIRROR_KIMI=0
       ;;
     custom)
-      SEL_GIT=1; SEL_PYTHON=1; SEL_NODE=1; SEL_CLAUDE=0; SEL_CC_MIRROR=1; SEL_MINIMAX=0; SEL_CODEX=1; SEL_GEMINI=1
+      SEL_GIT=1; SEL_PYTHON=1; SEL_NODE=1; SEL_CLAUDE=0; SEL_CC_MIRROR=1; SEL_MINIMAX=0; SEL_CODEX=0; SEL_GEMINI=0
       MIRROR_CLAUDE=0; MIRROR_MINIMAX=1; MIRROR_CODEX=0; MIRROR_KIMI=0
       ;;
     mirror)
-      SEL_GIT=0; SEL_PYTHON=0; SEL_NODE=1; SEL_CLAUDE=0; SEL_CC_MIRROR=1; SEL_MINIMAX=0; SEL_CODEX=1; SEL_GEMINI=0
+      SEL_GIT=0; SEL_PYTHON=0; SEL_NODE=1; SEL_CLAUDE=0; SEL_CC_MIRROR=1; SEL_MINIMAX=0; SEL_CODEX=0; SEL_GEMINI=0
       MIRROR_CLAUDE=0; MIRROR_MINIMAX=1; MIRROR_CODEX=0; MIRROR_KIMI=0
       ;;
     *) fail "Unsupported mode: $MODE. Expected quick, custom, or mirror." ;;
@@ -295,15 +295,15 @@ setup_terminal() {
 }
 
 header() {
-  printf '%s\n' "${BOLD}${BLUE}+----------------------------------------------+${RESET}"
-  printf '%s\n' "${BOLD}${BLUE}|      Developer CLI Tools Installer           |${RESET}"
-  printf '%s\n' "${BOLD}${BLUE}+----------------------------------------------+${RESET}"
-  printf '%s\n' "${DIM}Version ${APP_VERSION}${RESET}"
+  printf '%s\n' "${BOLD}${BLUE}+==========================================================================+${RESET}"
+  printf '%s\n' "${BOLD}${BLUE}|  DEV CLI INSTALLER                                         v${APP_VERSION}  |${RESET}"
+  printf '%s\n' "${BOLD}${BLUE}|  Git, Python, Node.js, npm, and selected AI command tools                  |${RESET}"
+  printf '%s\n' "${BOLD}${BLUE}+==========================================================================+${RESET}"
   printf '\n'
 }
 
 section() {
-  printf '\n%s\n' "${BOLD}${BLUE}> $1${RESET}"
+  printf '\n%s\n' "${BOLD}${BLUE}+-- $1 ---------------------------------------------------------------+${RESET}"
 }
 
 ok() {
@@ -403,11 +403,11 @@ confirm_plan() {
 
 show_plan() {
   section "Install Plan"
-  printf 'Platform:        %s\n' "$PLATFORM"
-  printf 'Package manager: %s\n' "$PKG_MANAGER"
-  printf 'Mode:            %s\n' "$MODE"
-  printf 'Run mode:        %s\n' "$([ "$DRY_RUN" -eq 1 ] && printf dry-run || printf install)"
-  printf '\nTools:\n'
+  printf '| Platform : %-61s |\n' "$PLATFORM"
+  printf '| Manager  : %-61s |\n' "$PKG_MANAGER"
+  printf '| Mode:            %-50s |\n' "$MODE"
+  printf '| Run mode : %-61s |\n' "$([ "$DRY_RUN" -eq 1 ] && printf dry-run || printf install)"
+  printf '| Tools    : %-61s |\n' ""
   [ "$SEL_GIT" -eq 1 ] && printf '  - Git\n'
   [ "$SEL_PYTHON" -eq 1 ] && printf '  - Python 3.10+ and pip\n'
   [ "$SEL_NODE" -eq 1 ] && printf '  - Node.js LTS and npm\n'
@@ -419,6 +419,7 @@ show_plan() {
   [ "$SEL_MINIMAX" -eq 1 ] && printf '  - Minimax\n'
   [ "$SEL_CODEX" -eq 1 ] && printf '  - OpenAI Codex\n'
   [ "$SEL_GEMINI" -eq 1 ] && printf '  - Gemini CLI\n'
+  printf '%s\n' "${BOLD}${BLUE}+--------------------------------------------------------------------------+${RESET}"
 }
 
 install_homebrew() {

@@ -19,12 +19,14 @@ curl -fsSL https://raw.githubusercontent.com/lmmagbuhos/1-click-install/main/ins
 Windows PowerShell:
 
 ```powershell
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
 iwr -useb https://raw.githubusercontent.com/lmmagbuhos/1-click-install/main/install.ps1 | iex
 ```
 
 Windows PowerShell with WSL handoff:
 
 ```powershell
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
 $script = iwr -useb https://raw.githubusercontent.com/lmmagbuhos/1-click-install/main/install.ps1; & ([scriptblock]::Create($script)) -Target WSL
 ```
 
@@ -101,7 +103,7 @@ Install modes:
 
 Git, Python, and Node are separate selectable tools. Python includes pip, and Node includes npm.
 
-By default, the installer selects `codex`, `gemini`, `cc-mirror`, and the `minimax` cc-mirror variant. Direct `claude` and `mmx` installs are available in Custom mode or through `--only` / `-Only`, but they are not selected by default.
+By default, the macOS/Linux installer selects `cc-mirror` and the `minimax` cc-mirror variant only for AI tooling. Direct `claude`, `mmx`, `codex`, and `gemini` installs are available in Custom mode or through `--only`, but they are not selected by default.
 
 VS Code and Windows Terminal are Windows-only options in the PowerShell Custom selector; they are not selected by default and are not part of the Linux/macOS installer.
 
@@ -127,7 +129,13 @@ Linux package installs may require `sudo`. Run from a user account with sudo per
 
 ### Windows execution policy
 
-If PowerShell blocks script execution, run:
+Before running the Windows installer, allow locally created scripts for the current user:
+
+```powershell
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+```
+
+If PowerShell still blocks a local `install.ps1`, run it with a process-scoped bypass:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\install.ps1

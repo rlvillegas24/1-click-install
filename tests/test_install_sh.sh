@@ -27,11 +27,12 @@ assert_not_contains() {
 
 quick_output="$(run_installer --mode quick)"
 assert_contains "$quick_output" "Mode:            quick"
-assert_contains "$quick_output" "OpenAI Codex"
 assert_contains "$quick_output" 'npm install -g cc-mirror'
 assert_contains "$quick_output" 'npx cc-mirror quick --provider minimax --name minimax --no-tweak'
 assert_not_contains "$quick_output" 'npm install -g @anthropic-ai/claude-code'
 assert_not_contains "$quick_output" 'npm install -g mmx-cli'
+assert_not_contains "$quick_output" 'npm install -g @openai/codex'
+assert_not_contains "$quick_output" 'npm install -g @google/gemini-cli'
 assert_not_contains "$quick_output" 'npx cc-mirror quick --provider mirror --name mclaude --no-tweak'
 assert_not_contains "$quick_output" 'npx cc-mirror quick --provider kimi --name kimi --no-tweak'
 assert_not_contains "$quick_output" 'npx cc-mirror quick --provider openai'
@@ -48,9 +49,10 @@ mirror_output="$(run_installer --mode mirror)"
 assert_contains "$mirror_output" "Mode:            mirror"
 assert_contains "$mirror_output" 'npm install -g cc-mirror'
 assert_contains "$mirror_output" 'npx cc-mirror quick --provider minimax --name minimax --no-tweak'
-assert_contains "$mirror_output" "OpenAI Codex"
 assert_not_contains "$mirror_output" 'npm install -g @anthropic-ai/claude-code'
 assert_not_contains "$mirror_output" 'npm install -g mmx-cli'
+assert_not_contains "$mirror_output" 'npm install -g @openai/codex'
+assert_not_contains "$mirror_output" 'npm install -g @google/gemini-cli'
 assert_not_contains "$mirror_output" 'npx cc-mirror quick --provider mirror --name mclaude --no-tweak'
 assert_not_contains "$mirror_output" 'npx cc-mirror quick --provider kimi --name kimi --no-tweak'
 assert_not_contains "$mirror_output" 'npx cc-mirror quick --provider openai'
