@@ -351,6 +351,47 @@ function script:Install-WingetWithReferenceScript {
     }
 }
 
+function script:Test-MicrosoftStoreInstalled {
+    $store = Get-AppxPackage -Name "Microsoft.WindowsStore" -ErrorAction SilentlyContinue
+    if ($null -eq $store) {
+        $store = Get-AppxPackage -AllUsers -Name "Microsoft.WindowsStore" -ErrorAction SilentlyContinue
+    }
+    return $null -ne $store
+}
+
+function script:Install-MicrosoftStoreWithReferenceScript {
+    if (Test-MicrosoftStoreInstalled) {
+        Write-Info "Microsoft Store is already installed."
+        return
+    }
+
+    $installerUrl = "https://raw.githubusercontent.com/ThioJoe/Windows-Sandbox-Tools/refs/heads/main/Installer%20Scripts/Install-Microsoft-Store.ps1"
+    $tmpScript = Join-Path $env:TEMP "Install-Microsoft-Store.ps1"
+    $psExe = $null
+
+    foreach ($exe in @("pwsh", "powershell")) {
+        $found = Get-Command $exe -ErrorAction SilentlyContinue
+        if ($null -ne $found) { $psExe = $found.Source; break }
+    }
+    if (-not $psExe) { throw "PowerShell executable not found." }
+
+    try {
+        Write-Step "Downloading official Microsoft Store installer script from upstream..."
+        Invoke-WebRequest -Uri $installerUrl -OutFile $tmpScript -UseBasicParsing -ErrorAction Stop
+        if ($DryRun) {
+            Write-Info "Dry-run: would run $tmpScript"
+            return
+        }
+        Write-Step "Running official Microsoft Store install script..."
+        $proc = Start-Process -FilePath $psExe -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $tmpScript) -Wait -PassThru -NoNewWindow -ErrorAction Stop
+        if (($proc.ExitCode -ne 0) -and ($proc.ExitCode -ne $null)) {
+            throw "Reference Microsoft Store script exited with code $($proc.ExitCode)"
+        }
+    } finally {
+        if (Test-Path $tmpScript) { Remove-Item $tmpScript -Force -ErrorAction SilentlyContinue }
+    }
+}
+
 # Runs winget install at LIMITED (non-elevated) privilege via a Scheduled Task.
 # This bypasses the Windows restriction that prevents App Execution Aliases from
 # running inside elevated processes. Task Scheduler launches the task at medium
@@ -668,6 +709,8 @@ function Ensure-Winget {
     }
 
     try {
+        Write-Step "Ensuring Microsoft Store is installed..."
+        Install-MicrosoftStoreWithReferenceScript
         Write-Step "Installing winget via official script..."
         Install-WingetWithReferenceScript
         Write-OK "winget installed successfully"
