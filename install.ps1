@@ -11,7 +11,8 @@ param(
     [string]$Only = "",
     [string]$Skip = "",
     [string]$Mirror = "",
-    [switch]$Help
+    [switch]$Help,
+    [switch]$SkipWingetAutoRestart
 )
 
 Set-StrictMode -Version Latest
@@ -496,6 +497,48 @@ function script:Request-Elevation {
     exit 0
 }
 
+function script:Build-InstallerArgList {
+    $scriptPath = $PSCommandPath
+    if ([string]::IsNullOrWhiteSpace($scriptPath)) { $scriptPath = $MyInvocation.PSCommandPath }
+    if ([string]::IsNullOrWhiteSpace($scriptPath)) { $scriptPath = $PSCommandPath }
+
+    $argList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $scriptPath)
+    $argList += @("-Mode", $Mode, "-Target", $Target)
+    if ($Yes)     { $argList += "-Yes" }
+    if ($DryRun)  { $argList += "-DryRun" }
+    if ($NoColor) { $argList += "-NoColor" }
+    if (-not [string]::IsNullOrWhiteSpace($Only))   { $argList += @("-Only",   $Only) }
+    if (-not [string]::IsNullOrWhiteSpace($Skip))   { $argList += @("-Skip",   $Skip) }
+    if (-not [string]::IsNullOrWhiteSpace($Mirror)) { $argList += @("-Mirror", $Mirror) }
+    return $argList
+}
+
+function script:Restart-CurrentSessionForWinget {
+    if ($SkipWingetAutoRestart) { return }
+    $sp = $PSCommandPath
+    if ([string]::IsNullOrWhiteSpace($sp)) { $sp = $MyInvocation.PSCommandPath }
+    if ([string]::IsNullOrWhiteSpace($sp)) { return }
+
+    $argList = Build-InstallerArgList
+    if (-not $argList.Contains("-SkipWingetAutoRestart")) { $argList += "-SkipWingetAutoRestart" }
+
+    $exeCandidates = @("pwsh", "powershell")
+    $psExe = $null
+    foreach ($exe in $exeCandidates) {
+        $found = Get-Command $exe -ErrorAction SilentlyContinue
+        if ($null -ne $found) { $psExe = $found.Source; break }
+    }
+    if ([string]::IsNullOrWhiteSpace($psExe)) { return }
+
+    Write-Info "Restarting PowerShell session to refresh winget context..."
+    try {
+        Start-Process -FilePath $psExe -ArgumentList $argList -Wait -ErrorAction Stop
+        exit 0
+    } catch {
+        Write-Warn "Could not auto-restart current session for winget resolution. Continuing in current session."
+    }
+}
+
 function Install-PrereqTool([string]$label, [string]$url, [string]$method, [string]$checkPkg) {
     if (-not [string]::IsNullOrWhiteSpace($checkPkg)) {
         $existing = Get-AppxPackage $checkPkg -ErrorAction SilentlyContinue
@@ -634,7 +677,8 @@ function Ensure-Winget {
         Write-OK "winget is ready in this session  [$wgExe]"
     } else {
         Write-Warn "winget was installed but could not be resolved in this session."
-        Write-Info "Continuing - if installs fail, re-run as standard user after a reboot."
+        Restart-CurrentSessionForWinget
+        Write-Info "Continuing - if installs fail, re-run as standard user in a new session."
     }
 }
 
