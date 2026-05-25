@@ -289,7 +289,11 @@ function script:Test-Cmd([string]$name) {
 # Returns true if the DesktopAppInstaller (winget) AppX package is present on this machine.
 # This is independent of whether winget can be executed from the current process context.
 function script:Test-WingetInstalled {
-    return $null -ne (Get-AppxPackage "Microsoft.DesktopAppInstaller" -ErrorAction SilentlyContinue)
+    $winget = Get-AppxPackage -Name "Microsoft.DesktopAppInstaller" -ErrorAction SilentlyContinue
+    if ($null -eq $winget) {
+        $winget = Get-AppxPackage -AllUsers -Name "Microsoft.DesktopAppInstaller" -ErrorAction SilentlyContinue
+    }
+    return $null -ne $winget
 }
 
 # Returns a winget executable path that actually runs in the current process context,
@@ -811,21 +815,7 @@ function script:Draw-MenuBody([int]$cursor) {
     bEmpty
 }
 
-function Invoke-InteractiveMenu {
-    if (($Mode -ne "Custom") -or $Yes -or $DryRun -or (-not [string]::IsNullOrWhiteSpace($Only))) {
-        return
-    }
-    $canInteract = $false
-    try { $canInteract = [Environment]::UserInteractive -and ($null -ne $Host.UI.RawUI) } catch {}
-    if (-not $canInteract) { return }
-
-    Write-Host ""
-    bTop "CHOOSE YOUR TOOLS"
-    $menuTop = [Console]::CursorTop
-    $cursor  = 0
-    Draw-MenuBody $cursor
-    bBot
-
+function script:Write-ToolMenuHelp {
     Write-Host ""
     colD "  Navigate " -n; colY "[UP] [DOWN]" -n
     colD "   Toggle " -n;  colY "[SPACE]" -n
@@ -834,6 +824,27 @@ function Invoke-InteractiveMenu {
     colD "   Confirm " -n; colY "[ENTER]" -n
     colD "   Quit " -n; colY "[Q]"
     Write-Host ""
+}
+
+function script:Render-ToolMenu([int]$cursor) {
+    Show-Banner
+    Show-InfoBar
+    bTop "CHOOSE YOUR TOOLS"
+    Draw-MenuBody $cursor
+    bBot
+    Write-ToolMenuHelp
+}
+
+function Invoke-InteractiveMenu {
+    if (($Mode -ne "Custom") -or $Yes -or $DryRun -or (-not [string]::IsNullOrWhiteSpace($Only))) {
+        return
+    }
+    $canInteract = $false
+    try { $canInteract = [Environment]::UserInteractive -and ($null -ne $Host.UI.RawUI) } catch {}
+    if (-not $canInteract) { return }
+
+    $cursor  = 0
+    Render-ToolMenu $cursor
 
     $done = $false
     while (-not $done) {
@@ -889,8 +900,7 @@ function Invoke-InteractiveMenu {
         }
 
         if ($needRedraw) {
-            try { [Console]::SetCursorPosition(0, $menuTop) } catch {}
-            Draw-MenuBody $cursor
+            Render-ToolMenu $cursor
         }
     }
 
@@ -925,6 +935,32 @@ function script:Draw-MirrorBody([object[]]$mirrorVariants, [int]$cursor) {
     bEmpty
 }
 
+function script:Write-MirrorMenuHelp {
+    Write-Host ""
+    colD "  Navigate " -n; colY "[UP] [DOWN]" -n
+    colD "   Toggle " -n;  colY "[SPACE]" -n
+    colD "   Enable All " -n; colY "[A]" -n
+    colD "   Skip All " -n; colY "[S]" -n
+    colD "   Confirm " -n; colY "[ENTER]"
+    Write-Host ""
+}
+
+function script:Render-MirrorMenu([object[]]$mirrorVariants, [int]$cursor) {
+    Show-Banner
+    Show-InfoBar
+    bTop "CC-MIRROR VARIANTS"
+    bEmpty
+    bRow "  cc-mirror creates additional Claude Code variant commands." DarkCyan
+    bRow "  These variants do not replace the real AI CLI binaries." DarkGray
+    bRow "  cc-mirror and Node.js will be installed automatically." DarkGray
+    bEmpty
+    bLabel "SELECT CC-MIRROR VARIANTS"
+    bEmpty
+    Draw-MirrorBody $mirrorVariants $cursor
+    bBot
+    Write-MirrorMenuHelp
+}
+
 function Invoke-MirrorMenu {
     # Skip if -Mirror flag already provided, not Custom mode, or non-interactive
     if (($Mode -ne "Custom") -or $Yes -or $DryRun -or (-not [string]::IsNullOrWhiteSpace($Mirror))) {
@@ -938,28 +974,8 @@ function Invoke-MirrorMenu {
     try { $canInteract = [Environment]::UserInteractive -and ($null -ne $Host.UI.RawUI) } catch {}
     if (-not $canInteract) { return }
 
-    Write-Host ""
-    bTop "CC-MIRROR VARIANTS"
-    bEmpty
-    bRow "  cc-mirror creates additional Claude Code variant commands." DarkCyan
-    bRow "  These variants do not replace the real AI CLI binaries." DarkGray
-    bRow "  cc-mirror and Node.js will be installed automatically." DarkGray
-    bEmpty
-    bLabel "SELECT CC-MIRROR VARIANTS"
-    bEmpty
-
-    $menuTop = [Console]::CursorTop
     $cursor  = 0
-    Draw-MirrorBody $mirrorVariants $cursor
-    bBot
-
-    Write-Host ""
-    colD "  Navigate " -n; colY "[UP] [DOWN]" -n
-    colD "   Toggle " -n;  colY "[SPACE]" -n
-    colD "   Enable All " -n; colY "[A]" -n
-    colD "   Skip All " -n; colY "[S]" -n
-    colD "   Confirm " -n; colY "[ENTER]"
-    Write-Host ""
+    Render-MirrorMenu $mirrorVariants $cursor
 
     $done = $false
     while (-not $done) {
@@ -988,8 +1004,7 @@ function Invoke-MirrorMenu {
         }
 
         if ($needRedraw) {
-            try { [Console]::SetCursorPosition(0, $menuTop) } catch {}
-            Draw-MirrorBody $mirrorVariants $cursor
+            Render-MirrorMenu $mirrorVariants $cursor
         }
     }
 
@@ -1692,8 +1707,9 @@ function Configure-Selection {
     # Auto-select system prerequisites when winget is not available
     $hasExplicitPrereq = (Has-ExplicitPrereqFlag $Only) -or (Has-ExplicitPrereqFlag $Skip)
     if (-not $hasExplicitPrereq) {
-        $wingetPresent    = Test-Cmd "winget"
-        $Selected.msstore  = -not $wingetPresent
+        $msstorePresent   = Test-MicrosoftStoreInstalled
+        $wingetPresent    = (Test-Cmd "winget") -or (Test-WingetInstalled)
+        $Selected.msstore  = -not $msstorePresent
         $Selected.winget   = -not $wingetPresent
     }
 }
