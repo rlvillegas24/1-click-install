@@ -757,7 +757,7 @@ function script:Draw-MenuBody([int]$cursor) {
             $lastGroup = $t.Group
             bEmpty
             $grpLbl = switch ($t.Group) {
-                "prereq" { "SYSTEM PREREQUISITES  (auto-selected: winget not found)" }
+                "prereq" { "SYSTEM PREREQUISITES  (auto-selected: winget/msstore not found)" }
                 "base"   { "BASE DEPENDENCIES" }
                 "dev"    { "DEV TOOLS" }
                 "ai"     { "AI CLI TOOLS" }
@@ -1016,7 +1016,7 @@ function Show-Plan {
     bRow "  Platform  :  Windows" DarkCyan
     bRow "  Mode      :  $Mode" DarkCyan
     bRow "  Target    :  $Target" DarkCyan
-    bRow "  Manager   :  winget + npm" DarkCyan
+    bRow "  Manager   :  winget (bootstrap via Microsoft Store) + npm" DarkCyan
     if ($DryRun) { bRow "  Run Mode  :  DRY-RUN  (no changes will be made)" Yellow }
     bEmpty
     bHRule
@@ -1567,6 +1567,20 @@ function script:Normalize([string]$t) {
     return ($t.ToLowerInvariant() -replace "[ _-]", "")
 }
 
+function script:Has-ExplicitPrereqFlag([string]$list) {
+    if ([string]::IsNullOrWhiteSpace($list)) { return $false }
+    foreach ($item in $list.Split(",", [System.StringSplitOptions]::RemoveEmptyEntries)) {
+        switch (Normalize $item.Trim()) {
+            "msstore"            { return $true }
+            "microsoftstore"      { return $true }
+            "winget"             { return $true }
+            "desktopappinstaller" { return $true }
+            "prereq"             { return $true }
+        }
+    }
+    return $false
+}
+
 function script:Clear-Selection {
     foreach ($k in @($Selected.Keys)) { $Selected[$k] = $false }
     Clear-MirrorVariants
@@ -1676,9 +1690,12 @@ function Configure-Selection {
     }
 
     # Auto-select system prerequisites when winget is not available
-    $wingetPresent       = Test-Cmd "winget"
-    $Selected.msstore     = -not $wingetPresent
-    $Selected.winget      = -not $wingetPresent
+    $hasExplicitPrereq = (Has-ExplicitPrereqFlag $Only) -or (Has-ExplicitPrereqFlag $Skip)
+    if (-not $hasExplicitPrereq) {
+        $wingetPresent    = Test-Cmd "winget"
+        $Selected.msstore  = -not $wingetPresent
+        $Selected.winget   = -not $wingetPresent
+    }
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
