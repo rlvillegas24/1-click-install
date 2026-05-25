@@ -27,6 +27,7 @@ assert_not_contains() {
 
 quick_output="$(run_installer --mode quick)"
 assert_contains "$quick_output" "Mode:            quick"
+assert_contains "$quick_output" 'Added cc-mirror bin to current session PATH'
 assert_contains "$quick_output" 'npm install -g cc-mirror'
 assert_contains "$quick_output" 'npx cc-mirror quick --provider minimax --name minimax --no-tweak'
 assert_not_contains "$quick_output" 'npm install -g @anthropic-ai/claude-code'

@@ -759,6 +759,14 @@ configure_path() {
     esac
   fi
 
+  cc_mirror_bin="$HOME/.cc-mirror/bin"
+  if [ "$SEL_CC_MIRROR" -eq 1 ] || [ "$MIRROR_CLAUDE" -eq 1 ] || [ "$MIRROR_MINIMAX" -eq 1 ] || [ "$MIRROR_KIMI" -eq 1 ]; then
+    case ":$PATH:" in
+      *":$cc_mirror_bin:"*) ok "cc-mirror bin already in current PATH" ;;
+      *) export PATH="$cc_mirror_bin:$PATH"; ok "Added cc-mirror bin to current session PATH" ;;
+    esac
+  fi
+
   profile=""
   shell_name="$(basename "${SHELL:-}")"
   case "$shell_name" in
@@ -777,6 +785,19 @@ configure_path() {
       ok "Persisted npm global bin PATH in $profile"
     else
       ok "PATH profile block already present in $profile"
+    fi
+  fi
+
+  if [ "$DRY_RUN" -eq 0 ] && { [ "$SEL_CC_MIRROR" -eq 1 ] || [ "$MIRROR_CLAUDE" -eq 1 ] || [ "$MIRROR_MINIMAX" -eq 1 ] || [ "$MIRROR_KIMI" -eq 1 ]; }; then
+    cc_marker="# Developer CLI Tools Installer cc-mirror PATH"
+    if [ ! -f "$profile" ] || ! grep -Fq "$cc_marker" "$profile"; then
+      {
+        printf '\n%s\n' "$cc_marker"
+        printf 'export PATH="$HOME/.cc-mirror/bin:$PATH"\n'
+      } >> "$profile"
+      ok "Persisted cc-mirror bin PATH in $profile"
+    else
+      ok "cc-mirror PATH profile block already present in $profile"
     fi
   fi
 }

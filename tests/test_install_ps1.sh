@@ -11,8 +11,8 @@ if [[ "$ps1_content" != *'Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -F
   exit 1
 fi
 
-if [[ "$ps1_content" != *'npm config get prefix'* || "$ps1_content" != *'SetEnvironmentVariable("Path", $userPath, "User")'* ]]; then
-  printf 'Expected install.ps1 to persist npm global prefix in user PATH for cc-mirror commands\n' >&2
+if [[ "$ps1_content" != *'npm config get prefix'* || "$ps1_content" != *'SetEnvironmentVariable("Path", $userPath, "User")'* || "$ps1_content" != *'".cc-mirror") "bin"'* ]]; then
+  printf 'Expected install.ps1 to persist npm global prefix and .cc-mirror bin in user PATH for cc-mirror commands\n' >&2
   exit 1
 fi
 

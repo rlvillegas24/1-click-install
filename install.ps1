@@ -192,6 +192,20 @@ function script:Ensure-NpmGlobalPath {
     Add-PathEntry $npmPrefix
 }
 
+function script:Ensure-CcMirrorBinPath {
+    if ((-not $Selected.ccmirror) -and (-not (Any-MirrorVariantSelected))) { return }
+
+    $profilePath = [Environment]::GetFolderPath("UserProfile")
+    if ([string]::IsNullOrWhiteSpace($profilePath)) { $profilePath = $env:USERPROFILE }
+    if ([string]::IsNullOrWhiteSpace($profilePath)) {
+        Write-Warn "Could not resolve user profile; skipping cc-mirror PATH setup"
+        return
+    }
+
+    $ccMirrorBin = Join-Path (Join-Path $profilePath ".cc-mirror") "bin"
+    Add-PathEntry $ccMirrorBin
+}
+
 function script:Ensure-ExecutionPolicy {
     if ($DryRun) {
         Write-Info "Dry-run: would run Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force"
@@ -1309,6 +1323,7 @@ function Install-AiTools {
     }
 
     Ensure-NpmGlobalPath
+    Ensure-CcMirrorBinPath
     Update-SessionPath
 
     if (Any-MirrorVariantSelected) {

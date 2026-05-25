@@ -161,7 +161,7 @@ Then rerun the installer with:
 
 ### PATH
 
-Open a new terminal after installation if a command is still not found. The installer updates the current session where possible and persists common PATH entries for future sessions.
+Open a new terminal after installation if a command is still not found. The installer updates the current session where possible and persists common PATH entries for future sessions, including npm global binaries and the cc-mirror variant command directory (`~/.cc-mirror/bin` or `%USERPROFILE%\.cc-mirror\bin`).
 
 ## Verification
 
