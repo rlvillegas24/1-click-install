@@ -14,7 +14,9 @@ PLATFORM="unknown"
 PKG_MANAGER="unknown"
 SUDO_CMD=""
 RESULTS=()
-BOLD=""; DIM=""; RED=""; GREEN=""; YELLOW=""; BLUE=""; RESET=""
+BOLD=""; DIM=""; RED=""; GREEN=""; YELLOW=""; BLUE=""; CYAN=""; WHITE=""; RESET=""
+BOX_W=76
+INNER_W=$((BOX_W - 6))
 SEL_GIT=1
 SEL_PYTHON=1
 SEL_NODE=1
@@ -213,16 +215,20 @@ interactive_custom_selection() {
   fi
 
   while :; do
-    section "Choose Tools"
-    printf '1 [%s] Git\n' "$([ "$SEL_GIT" -eq 1 ] && printf x || printf ' ')"
-    printf '2 [%s] Python + pip\n' "$([ "$SEL_PYTHON" -eq 1 ] && printf x || printf ' ')"
-    printf '3 [%s] Node.js + npm\n' "$([ "$SEL_NODE" -eq 1 ] && printf x || printf ' ')"
-    printf '4 [%s] Claude Code\n' "$([ "$SEL_CLAUDE" -eq 1 ] && printf x || printf ' ')"
-    printf '5 [%s] cc-mirror\n' "$([ "$SEL_CC_MIRROR" -eq 1 ] && printf x || printf ' ')"
-    printf '6 [%s] Minimax\n' "$([ "$SEL_MINIMAX" -eq 1 ] && printf x || printf ' ')"
-    printf '7 [%s] OpenAI Codex\n' "$([ "$SEL_CODEX" -eq 1 ] && printf x || printf ' ')"
-    printf '8 [%s] Gemini CLI\n' "$([ "$SEL_GEMINI" -eq 1 ] && printf x || printf ' ')"
-    printf 'Toggle numbers, a=all, n=none, Enter=continue, q=cancel: ' >/dev/tty
+    section "CHOOSE YOUR TOOLS"
+    bTop "Pick items"
+    bEmpty
+    bRow "  1 [$([ "$SEL_GIT" -eq 1 ] && printf x || printf ' ')] Git" "$WHITE"
+    bRow "  2 [$([ "$SEL_PYTHON" -eq 1 ] && printf x || printf ' ')] Python + pip" "$WHITE"
+    bRow "  3 [$([ "$SEL_NODE" -eq 1 ] && printf x || printf ' ')] Node.js + npm" "$WHITE"
+    bRow "  4 [$([ "$SEL_CLAUDE" -eq 1 ] && printf x || printf ' ')] Claude Code" "$WHITE"
+    bRow "  5 [$([ "$SEL_CC_MIRROR" -eq 1 ] && printf x || printf ' ')] cc-mirror" "$WHITE"
+    bRow "  6 [$([ "$SEL_MINIMAX" -eq 1 ] && printf x || printf ' ')] Minimax" "$WHITE"
+    bRow "  7 [$([ "$SEL_CODEX" -eq 1 ] && printf x || printf ' ')] OpenAI Codex" "$WHITE"
+    bRow "  8 [$([ "$SEL_GEMINI" -eq 1 ] && printf x || printf ' ')] Gemini CLI" "$WHITE"
+    bRow "  Toggle numbers, a=all, n=none, Enter=continue, q=cancel" "$DIM"
+    bBot
+    printf '  Selection: ' >/dev/tty
     read -r answer </dev/tty
     case "$answer" in
       "") break ;;
@@ -278,15 +284,16 @@ interactive_mirror_selection() {
 
 setup_terminal() {
   if [ -t 1 ] && [ "$NO_COLOR" -eq 0 ] && [ "${TERM:-}" != "dumb" ]; then
-    BOLD="$(printf '\033[1m')"
-    DIM="$(printf '\033[2m')"
+    DIM="$(printf '\033[90m')"
     RED="$(printf '\033[31m')"
     GREEN="$(printf '\033[32m')"
     YELLOW="$(printf '\033[33m')"
     BLUE="$(printf '\033[34m')"
+    CYAN="$(printf '\033[36m')"
+    WHITE="$(printf '\033[37m')"
     RESET="$(printf '\033[0m')"
   else
-    BOLD=""; DIM=""; RED=""; GREEN=""; YELLOW=""; BLUE=""; RESET=""
+    DIM=""; RED=""; GREEN=""; YELLOW=""; BLUE=""; CYAN=""; WHITE=""; RESET=""
   fi
 
   if [ -r /dev/tty ]; then
@@ -294,28 +301,103 @@ setup_terminal() {
   fi
 }
 
+repeat_char() {
+  local char="$1"
+  local count="$2"
+  if [ "$count" -lt 0 ]; then
+    count=0
+  fi
+  printf '%*s' "$count" | tr ' ' "$char"
+}
+
+bTop() {
+  local title="$1"
+  if [ -z "$title" ]; then
+    printf '%s\n' "${DIM}  +$(repeat_char '-' "$((INNER_W + 2))")+${RESET}"
+    return
+  fi
+  local tag="-- $title "
+  local fill=$((INNER_W + 2 - ${#tag}))
+  if [ "$fill" -lt 0 ]; then
+    fill=0
+  fi
+  printf '%s\n' "${DIM}  +$tag$(repeat_char '-' "$fill")+${RESET}"
+}
+
+bRow() {
+  local content="$1"
+  local color="$2"
+  if [ -z "$color" ]; then
+    color="$WHITE"
+  fi
+  if [ "${#content}" -gt "$INNER_W" ]; then
+    content="${content:0:$((INNER_W - 3))}..."
+  fi
+  printf '%s\n' "${DIM}  |$color $(printf '%-*s' "$INNER_W" "$content") ${DIM}|${RESET}"
+}
+
+bEmpty() {
+  printf '%s\n' "${DIM}  |$(repeat_char ' ' "$((INNER_W + 2))")|${RESET}"
+}
+
+bBot() {
+  printf '%s\n' "${DIM}  +$(repeat_char '-' "$((INNER_W + 2))")+${RESET}"
+}
+
+result_icon() {
+  case "$1" in
+    verified|ok|installed) printf '+' ;;
+    skipped) printf '=' ;;
+    planned) printf '~' ;;
+    failed|missing) printf 'X' ;;
+    *) printf ' ' ;;
+  esac
+}
+
 header() {
-  printf '%s\n' "${BOLD}${BLUE}+==========================================================================+${RESET}"
-  printf '%s\n' "${BOLD}${BLUE}|  DEV CLI INSTALLER                                         v${APP_VERSION}  |${RESET}"
-  printf '%s\n' "${BOLD}${BLUE}|  Git, Python, Node.js, npm, and selected AI command tools                  |${RESET}"
-  printf '%s\n' "${BOLD}${BLUE}+==========================================================================+${RESET}"
+  local iw=$((BOX_W - 2))
+  local top_line
+  top_line="$(repeat_char '=' "$iw")"
+  local platform_badge="[LINUX/MACOS]"
+  case "$PLATFORM" in
+    wsl) platform_badge="[WSL]" ;;
+    macos) platform_badge="[MACOS]" ;;
+    linux) platform_badge="[LINUX]" ;;
+  esac
+
+  printf '%s\n' "${CYAN}+${top_line}+${RESET}"
+  printf '%s\n' "${CYAN}|$(printf '%-*s' "$iw" "  DEV CLI INSTALLER  v${APP_VERSION}  ${platform_badge}")|${RESET}"
+  printf '%s\n' "${CYAN}|$(printf '%-*s' "$iw" "  One-click AI development environment setup for Linux/macOS")|${RESET}"
+  printf '%s\n' "${CYAN}+${top_line}+${RESET}"
+  printf '\n'
+  printf '%s\n' "${DIM}  Platform: $PLATFORM   Mode: $MODE   Manager: $PKG_MANAGER${RESET}"
+  [ "$DRY_RUN" -eq 1 ] && printf '%s\n' "${YELLOW}  [DRY-RUN]${RESET}"
   printf '\n'
 }
 
 section() {
-  printf '\n%s\n' "${BOLD}${BLUE}+-- $1 ---------------------------------------------------------------+${RESET}"
+  local line
+  line="$(repeat_char '=' "$((BOX_W - 4))")"
+  local title="$1"
+  local padded
+  padded="$(printf '%-*s' "$((BOX_W - 4))" "  $title")"
+  printf '\n'
+  printf '%s\n' "${CYAN}  +$line+${RESET}"
+  printf '%s\n' "${CYAN}  |$padded|${RESET}"
+  printf '%s\n' "${CYAN}  +$line+${RESET}"
+  printf '\n'
 }
 
 ok() {
-  printf '%s\n' "${GREEN}[ok]${RESET} $1"
+  printf '%s\n' "${GREEN}  [+]${RESET} $1"
 }
 
 warn() {
-  printf '%s\n' "${YELLOW}[!]${RESET} $1"
+  printf '%s\n' "${YELLOW}  [*]${RESET} $1"
 }
 
 err() {
-  printf '%s\n' "${RED}[x]${RESET} $1" >&2
+  printf '%s\n' "${RED}  [X]${RESET} $1" >&2
 }
 
 fail() {
@@ -403,23 +485,29 @@ confirm_plan() {
 
 show_plan() {
   section "Install Plan"
-  printf '| Platform : %-61s |\n' "$PLATFORM"
-  printf '| Manager  : %-61s |\n' "$PKG_MANAGER"
-  printf '| Mode:            %-50s |\n' "$MODE"
-  printf '| Run mode : %-61s |\n' "$([ "$DRY_RUN" -eq 1 ] && printf dry-run || printf install)"
-  printf '| Tools    : %-61s |\n' ""
-  [ "$SEL_GIT" -eq 1 ] && printf '  - Git\n'
-  [ "$SEL_PYTHON" -eq 1 ] && printf '  - Python 3.10+ and pip\n'
-  [ "$SEL_NODE" -eq 1 ] && printf '  - Node.js LTS and npm\n'
-  [ "$SEL_CLAUDE" -eq 1 ] && printf '  - Claude Code\n'
-  [ "$SEL_CC_MIRROR" -eq 1 ] && printf '  - cc-mirror\n'
-  [ "$MIRROR_CLAUDE" -eq 1 ] && printf '  - mclaude cc-mirror variant\n'
-  [ "$MIRROR_MINIMAX" -eq 1 ] && printf '  - minimax cc-mirror variant\n'
-  [ "$MIRROR_KIMI" -eq 1 ] && printf '  - kimi cc-mirror variant\n'
-  [ "$SEL_MINIMAX" -eq 1 ] && printf '  - Minimax\n'
-  [ "$SEL_CODEX" -eq 1 ] && printf '  - OpenAI Codex\n'
-  [ "$SEL_GEMINI" -eq 1 ] && printf '  - Gemini CLI\n'
-  printf '%s\n' "${BOLD}${BLUE}+--------------------------------------------------------------------------+${RESET}"
+  bTop "Install plan"
+  bRow "  Platform  :  $PLATFORM" "$CYAN"
+  bRow "  Manager   :  $PKG_MANAGER" "$CYAN"
+  bRow "  Mode:            $MODE" "$CYAN"
+  if [ "$DRY_RUN" -eq 1 ]; then
+    bRow "  Run mode :  dry-run" "$YELLOW"
+  else
+    bRow "  Run mode :  install" "$CYAN"
+  fi
+  bRow "  Tools    :" "$CYAN"
+  [ "$SEL_GIT" -eq 1 ] && bRow "    - Git" "$WHITE"
+  [ "$SEL_PYTHON" -eq 1 ] && bRow "    - Python 3.10+ and pip" "$WHITE"
+  [ "$SEL_NODE" -eq 1 ] && bRow "    - Node.js LTS and npm" "$WHITE"
+  [ "$SEL_CLAUDE" -eq 1 ] && bRow "    - Claude Code" "$WHITE"
+  [ "$SEL_CC_MIRROR" -eq 1 ] && bRow "    - cc-mirror" "$WHITE"
+  [ "$MIRROR_CLAUDE" -eq 1 ] && bRow "    - mclaude cc-mirror variant" "$WHITE"
+  [ "$MIRROR_MINIMAX" -eq 1 ] && bRow "    - minimax cc-mirror variant" "$WHITE"
+  [ "$MIRROR_KIMI" -eq 1 ] && bRow "    - kimi cc-mirror variant" "$WHITE"
+  [ "$SEL_MINIMAX" -eq 1 ] && bRow "    - Minimax" "$WHITE"
+  [ "$SEL_CODEX" -eq 1 ] && bRow "    - OpenAI Codex" "$WHITE"
+  [ "$SEL_GEMINI" -eq 1 ] && bRow "    - Gemini CLI" "$WHITE"
+  bEmpty
+  bBot
 }
 
 install_homebrew() {
@@ -726,22 +814,26 @@ verify_all() {
 
 summary() {
   section "Summary"
-  printf '%-18s | %-40s | %-10s\n' "Tool" "Version/Status" "Result"
-  printf '%-18s-+-%-40s-+-%-10s\n' "------------------" "----------------------------------------" "----------"
+  bRow "  Tool                 Version/Status                            Result" "$CYAN"
+  bRow "  ------------------   --------------------------------------   ----------" "$DIM"
   for row in "${RESULTS[@]}"; do
     IFS='|' read -r name value status <<EOF_ROW
 $row
 EOF_ROW
-    printf '%-18s | %-40.40s | %-10s\n' "$name" "$value" "$status"
+    local icon
+    icon="$(result_icon "$status")"
+    bRow "  $name$(repeat_char ' ' $((18 - ${#name})) )  $value$(repeat_char ' ' $((40 - ${#value})) )  [${icon}] $status" "$WHITE"
   done
+  bEmpty
+  bBot
 }
 
 main() {
   parse_args "$@"
   setup_terminal
-  header
   configure_selection
   detect_platform
+  header
   interactive_custom_selection
   interactive_mirror_selection
   show_plan
