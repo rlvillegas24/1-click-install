@@ -103,7 +103,7 @@ Install modes:
 
 Git, Python, and Node are separate selectable tools. Python includes pip, and Node includes npm.
 
-By default, the macOS/Linux installer selects `cc-mirror` and the `minimax` cc-mirror variant only for AI tooling. Direct `claude`, `mmx`, `codex`, and `gemini` installs are available in Custom mode or through `--only`, but they are not selected by default.
+By default, both installers select `cc-mirror` and the `minimax` cc-mirror variant only for AI tooling. Direct `claude`, `mmx`, `codex`, and `gemini` installs are available in Custom mode or through `--only` / `-Only`, but they are not selected by default.
 
 VS Code and Windows Terminal are Windows-only options in the PowerShell Custom selector; they are not selected by default and are not part of the Linux/macOS installer.
 

@@ -51,7 +51,7 @@ $Selected = @{
     msstore=$false; winget=$false                                  # set by Configure-Selection
     git=$true;  python=$true;  node=$true
     vscode=$true; terminal=$true; "7zip"=$false
-    claude=$true; ccmirror=$false; minimax=$true; codex=$true; gemini=$true
+    claude=$false; ccmirror=$true; minimax=$false; codex=$false; gemini=$false
 }
 
 $MirrorSelected = @{ mclaude=$false; minimax=$false; kimi=$false }
@@ -1557,7 +1557,7 @@ function Show-Usage {
     bLabel "MODES"
     bRow "  Quick   Install the recommended default toolset" White
     bRow "  Custom  Interactive selection menu with arrow-key navigation" White
-    bRow "  Mirror  Direct Codex plus supported cc-mirror variants" White
+    bRow "  Mirror  cc-mirror plus supported Claude variants" White
     bEmpty
     bLabel "TOOL KEYS  (for -Only / -Skip)"
     bRow "  prereq, base, dev, ai, all" DarkCyan
@@ -1673,21 +1673,21 @@ function Configure-Selection {
             $Selected.git=$true;  $Selected.python=$true;  $Selected.node=$true
             $Selected.vscode=$false; $Selected.terminal=$false; $Selected["7zip"]=$false
             $Selected.claude=$false; $Selected.ccmirror=$true
-            $Selected.minimax=$false; $Selected.codex=$true; $Selected.gemini=$true
+            $Selected.minimax=$false; $Selected.codex=$false; $Selected.gemini=$false
             $MirrorSelected.mclaude=$false; $MirrorSelected.minimax=$true; $MirrorSelected.kimi=$false
         }
         "Custom" {
             $Selected.git=$true;  $Selected.python=$true;  $Selected.node=$true
             $Selected.vscode=$false; $Selected.terminal=$false; $Selected["7zip"]=$false
             $Selected.claude=$false; $Selected.ccmirror=$true
-            $Selected.minimax=$false; $Selected.codex=$true; $Selected.gemini=$true
+            $Selected.minimax=$false; $Selected.codex=$false; $Selected.gemini=$false
             $MirrorSelected.mclaude=$false; $MirrorSelected.minimax=$true; $MirrorSelected.kimi=$false
         }
         "Mirror" {
             $Selected.git=$false; $Selected.python=$false; $Selected.node=$true
             $Selected.vscode=$false; $Selected.terminal=$false; $Selected["7zip"]=$false
             $Selected.claude=$false; $Selected.ccmirror=$true
-            $Selected.minimax=$false; $Selected.codex=$true; $Selected.gemini=$false
+            $Selected.minimax=$false; $Selected.codex=$false; $Selected.gemini=$false
             $MirrorSelected.mclaude=$false; $MirrorSelected.minimax=$true; $MirrorSelected.kimi=$false
         }
     }
