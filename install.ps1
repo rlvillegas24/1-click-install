@@ -321,6 +321,128 @@ function script:Get-WingetExe {
     return $null
 }
 
+# Install-Winget helpers based on:
+# https://raw.githubusercontent.com/ThioJoe/Windows-Sandbox-Tools/refs/heads/main/Installer%20Scripts/Install-Winget.ps1
+function script:Get-LatestWingetRelease {
+    try {
+        $releasesUrl = "https://api.github.com/repos/microsoft/winget-cli/releases"
+        $releases = Invoke-RestMethod -Uri $releasesUrl -UseBasicParsing -ErrorAction Stop
+        if (-not $releases) { return $null }
+        return $releases | Sort-Object -Property published_at -Descending | Select-Object -First 1
+    } catch {
+        return $null
+    }
+}
+
+function script:Get-WingetAssetUrl {
+    param(
+        [Parameter(Mandatory = $true)] $release,
+        [Parameter(Mandatory = $true)] [string]$assetName
+    )
+    if ($release.assets -and $release.assets.Count -gt 0) {
+        $asset = $release.assets | Where-Object { $_.name -eq $assetName }
+        if ($asset) { return $asset.browser_download_url }
+    }
+    return $null
+}
+
+function script:Install-WingetDependencies {
+    param([string]$depsFolder)
+    $jsonFile = Join-Path $depsFolder "DesktopAppInstaller_Dependencies.json"
+    if (Test-Path $jsonFile) {
+        Write-Host "Installing dependencies based on DesktopAppInstaller_Dependencies.json"
+        $jsonContent = Get-Content $jsonFile -Raw | ConvertFrom-Json
+        $dependencies = $jsonContent.Dependencies
+        foreach ($dep in $dependencies) {
+            $matchingFiles = Get-ChildItem -Path $depsFolder -Filter *.appx -Recurse -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -like "*$($dep.Name)*" -and $_.Name -like "*$($dep.Version)*" }
+            foreach ($file in $matchingFiles) {
+                Write-Step "Installing dependency: $($file.Name)"
+                Add-AppxPackage -Path $file.FullName -ErrorAction Stop
+            }
+        }
+        return
+    }
+
+    Write-Warn "No DesktopAppInstaller_Dependencies.json found, installing all .appx in $depsFolder"
+    foreach ($appxFile in Get-ChildItem $depsFolder -Filter *.appx -Recurse -ErrorAction SilentlyContinue) {
+        Write-Step "Installing dependency: $($appxFile.Name)"
+        Add-AppxPackage -Path $appxFile.FullName -ErrorAction Stop
+    }
+}
+
+function script:Install-WingetWithReferenceLogic {
+    $subfolderName = "Winget Install"
+    $msixName = "Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle"
+    $depsZipName = "DesktopAppInstaller_Dependencies.zip"
+    $downloads = [Environment]::GetFolderPath("UserProfile")
+    if ([string]::IsNullOrWhiteSpace($downloads)) { $downloads = $env:TEMP }
+
+    $workingDir = Join-Path $downloads $subfolderName
+    if (-not (Test-Path $workingDir)) {
+        New-Item -Path $workingDir -ItemType Directory -Force | Out-Null
+    }
+
+    $prevProgressPreference = $ProgressPreference
+    $ProgressPreference = "SilentlyContinue"
+
+    try {
+        $latestRelease = Get-LatestWingetRelease
+        if (-not $latestRelease) { throw "Could not retrieve the latest release." }
+
+        $msixUrl = Get-WingetAssetUrl -release $latestRelease -assetName $msixName
+        if (-not $msixUrl) { throw "Could not find $msixName in the latest release assets." }
+
+        $msixPath = Join-Path $workingDir $msixName
+        Write-Step "Downloading $msixName..."
+        Invoke-WebRequest -Uri $msixUrl -OutFile $msixPath -UseBasicParsing -ErrorAction Stop
+
+        $depsZipUrl = Get-WingetAssetUrl -release $latestRelease -assetName $depsZipName
+        $topDepsFolder = Join-Path $workingDir "Dependencies"
+        if ($depsZipUrl) {
+            Write-Step "Downloading $depsZipName..."
+            $depsZipPath = Join-Path $workingDir $depsZipName
+            Invoke-WebRequest -Uri $depsZipUrl -OutFile $depsZipPath -UseBasicParsing -ErrorAction Stop
+
+            if (Test-Path $topDepsFolder) { Remove-Item -Path $topDepsFolder -Recurse -Force -ErrorAction SilentlyContinue }
+            try {
+                Expand-Archive -LiteralPath $depsZipPath -DestinationPath $topDepsFolder -Force -ErrorAction Stop
+            } catch {
+                Write-Warning "Standard extraction failed, attempting .NET fallback."
+                Add-Type -AssemblyName System.IO.Compression.FileSystem
+                [System.IO.Compression.ZipFile]::ExtractToDirectory($depsZipPath, $topDepsFolder)
+            }
+            if (Test-Path $depsZipPath) { Remove-Item -Path $depsZipPath -Force -ErrorAction SilentlyContinue }
+        } else {
+            Write-Warning "No $depsZipName found in release, skipping dependency download."
+        }
+
+        $arch = "x64"
+        switch -Wildcard ($env:PROCESSOR_ARCHITECTURE) {
+            "AMD64" { $arch = "x64" }
+            "x86" { $arch = "x86" }
+            "*ARM64*" { $arch = "arm64" }
+            "*ARM*" { $arch = "arm" }
+            default {
+                Write-Warning "Unrecognized architecture: $($env:PROCESSOR_ARCHITECTURE). Defaulting to x64."
+            }
+        }
+
+        $depsFolder = Join-Path (Join-Path $topDepsFolder $arch)
+        if (Test-Path $depsFolder) {
+            Install-WingetDependencies -depsFolder $depsFolder
+        } elseif ($depsZipUrl) {
+            Write-Warning "No architecture-specific dependencies found at $depsFolder"
+        }
+
+        if (-not (Test-Path $msixPath)) { throw "Winget package not found at: $msixPath" }
+        Write-Step "Installing $msixName..."
+        Add-AppxPackage -Path $msixPath -ErrorAction Stop
+    } finally {
+        $ProgressPreference = $prevProgressPreference
+    }
+}
+
 # Runs winget install at LIMITED (non-elevated) privilege via a Scheduled Task.
 # This bypasses the Windows restriction that prevents App Execution Aliases from
 # running inside elevated processes. Task Scheduler launches the task at medium
@@ -637,30 +759,9 @@ function Ensure-Winget {
         return
     }
 
-    Write-Step "Fetching latest winget release from GitHub..."
-    $progressPreference = "SilentlyContinue"
-
     try {
-        $api     = "https://api.github.com/repos/microsoft/winget-cli/releases/latest"
-        $rel     = (Invoke-WebRequest $api -UseBasicParsing -ErrorAction Stop | ConvertFrom-Json)
-        $msix    = $rel.assets | Where-Object { ($null -ne $_) -and ($_.name -like "*.msixbundle") }    | Select-Object -First 1
-        $license = $rel.assets | Where-Object { ($null -ne $_) -and ($_.name -like "*License*.xml") } | Select-Object -First 1
-        if ($null -eq $msix) { throw "No .msixbundle found in release assets" }
-
-        $msixPath    = Join-Path $env:TEMP "winget.msixbundle"
-        $licensePath = Join-Path $env:TEMP "winget-license.xml"
-
-        Write-Step "Downloading $($msix.name)..."
-        Invoke-WebRequest $msix.browser_download_url -OutFile $msixPath -UseBasicParsing -ErrorAction Stop
-
-        if ($null -ne $license) {
-            Write-Step "Downloading license file..."
-            Invoke-WebRequest $license.browser_download_url -OutFile $licensePath -UseBasicParsing -ErrorAction Stop
-            Add-AppxProvisionedPackage -Online -PackagePath $msixPath -LicensePath $licensePath -ErrorAction Stop
-        } else {
-            Add-AppxPackage -Path $msixPath -ErrorAction Stop
-        }
-
+        Write-Step "Installing winget (reference dependency-aware flow)..."
+        Install-WingetWithReferenceLogic
         Write-OK "winget installed successfully"
     } catch {
         Write-Fatal "winget installation failed: $_. Ensure prerequisites (VCLibs, Win App Runtime) are installed and re-run as Administrator."
