@@ -28,8 +28,8 @@ $ResultsMap = @{}
 
 $ToolDefs = @(
     # ── System prerequisites (auto-selected when winget is absent) ──────────
-    @{ Key="vclibs";     Name="VCLibs x64 14.00";  Desc="C++ runtime required by winget";   Group="prereq"; Method="appx";    Url="https://aka.ms/Microsoft.VCLibs.x64.14.00.Desktop.appx"; CheckPkg="Microsoft.VCLibs.140.00*"; Binary=""; WinPkg=""; NpmPkg=""; Verify="" },
-    @{ Key="appruntime"; Name="Win App Runtime";    Desc="Framework required by winget";      Group="prereq"; Method="runtime"; Url="https://aka.ms/windowsappruntimeinstall-x64";             CheckPkg="Microsoft.WindowsAppRuntime*";          Binary=""; WinPkg=""; NpmPkg=""; Verify="" },
+    @{ Key="msstore";   Name="Microsoft Store";    Desc="Prerequisite for modern app installation"; Group="prereq"; Method="script"; Url=""; CheckPkg="Microsoft.WindowsStore*";           Binary=""; WinPkg=""; NpmPkg=""; Verify="" },
+    @{ Key="winget";    Name="Windows Package Manager"; Desc="Primary package manager for dev dependencies"; Group="prereq"; Method="script"; Url=""; CheckPkg="Microsoft.DesktopAppInstaller*";    Binary=""; WinPkg=""; NpmPkg=""; Verify="" },
     # ── Base ────────────────────────────────────────────────────────────────
     @{ Key="git";      Name="Git";               Desc="Source control system";          Group="base"; Method="winget"; Url=""; CheckPkg=""; Binary="git";       WinPkg="Git.Git";                   NpmPkg="";                          Verify="git --version"      },
     @{ Key="python";   Name="Python 3.x";        Desc="Scripting and AI workflows";     Group="base"; Method="winget"; Url=""; CheckPkg=""; Binary="python";    WinPkg="Python.Python.3.12";        NpmPkg="";                          Verify="python --version"   },
@@ -48,7 +48,7 @@ $ToolDefs = @(
 
 # Prereq auto-selection happens in Configure-Selection after Test-Cmd is available
 $Selected = @{
-    vclibs=$false; appruntime=$false                              # set by Configure-Selection
+    msstore=$false; winget=$false                                  # set by Configure-Selection
     git=$true;  python=$true;  node=$true
     vscode=$true; terminal=$true; "7zip"=$false
     claude=$true; ccmirror=$false; minimax=$true; codex=$true; gemini=$true
@@ -671,6 +671,18 @@ function Install-Prerequisites {
                 Set-Result $t.Name "planned" "planned"
                 continue
             }
+            if ($t.Method -eq "script") {
+                if ($t.Key -eq "msstore") {
+                    Install-MicrosoftStoreWithReferenceScript
+                    Set-Result $t.Name "installed" "ok"
+                    continue
+                }
+                if ($t.Key -eq "winget") {
+                    Install-WingetWithReferenceScript
+                    Set-Result $t.Name "installed" "ok"
+                    continue
+                }
+            }
             Install-PrereqTool $t.Name $t.Url $t.Method $t.CheckPkg
             Set-Result $t.Name "installed" "ok"
         } catch {
@@ -715,7 +727,7 @@ function Ensure-Winget {
         Install-WingetWithReferenceScript
         Write-OK "winget installed successfully"
     } catch {
-        Write-Fatal "winget installation failed: $_. Ensure prerequisites (VCLibs, Win App Runtime) are installed and re-run as Administrator."
+        Write-Fatal "winget installation failed: $_. Ensure Microsoft Store and system permissions are available and re-run as Administrator."
     }
 
     # Refresh PATH and clear the cached exe path so Get-WingetExe re-resolves
@@ -1534,7 +1546,7 @@ function Show-Usage {
     bEmpty
     bLabel "TOOL KEYS  (for -Only / -Skip)"
     bRow "  prereq, base, dev, ai, all" DarkCyan
-    bRow "  vclibs, appruntime, git, python, node, vscode, terminal, 7zip" DarkCyan
+    bRow "  msstore, winget, git, python, node, vscode, terminal, 7zip" DarkCyan
     bRow "  claude, ccmirror, minimax, codex, gemini" DarkCyan
     bEmpty
     bLabel "EXAMPLES"
@@ -1563,10 +1575,11 @@ function script:Clear-Selection {
 function Set-ToolSel([string]$tool, [bool]$val) {
     $tok = Normalize $tool
     switch ($tok) {
-        "vclibs"        { $Selected.vclibs      = $val }
-        "appruntime"    { $Selected.appruntime   = $val }
-        "windowsappruntime" { $Selected.appruntime = $val }
-        "prereq"        { $Selected.vclibs=$val; $Selected.appruntime=$val }
+        "msstore"            { $Selected.msstore      = $val }
+        "microsoftstore"      { $Selected.msstore      = $val }
+        "winget"             { $Selected.winget       = $val }
+        "desktopappinstaller" { $Selected.winget       = $val }
+        "prereq"             { $Selected.msstore = $val; $Selected.winget = $val }
         "git"           { $Selected.git      = $val }
         "python"        { $Selected.python   = $val }
         "pythonpip"     { $Selected.python   = $val }
@@ -1664,8 +1677,8 @@ function Configure-Selection {
 
     # Auto-select system prerequisites when winget is not available
     $wingetPresent       = Test-Cmd "winget"
-    $Selected.vclibs     = -not $wingetPresent
-    $Selected.appruntime = -not $wingetPresent
+    $Selected.msstore     = -not $wingetPresent
+    $Selected.winget      = -not $wingetPresent
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
